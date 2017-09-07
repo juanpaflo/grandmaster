@@ -1,0 +1,82 @@
+---
+title: "Prediction Assignment Writeup"
+author: "Juan Flores"
+date: "September 2, 2017"
+output: html_document
+---
+#Executive Summary
+
+This document is to present the analysis of the data gathered from 6 subjects while performing an excercise (barbell lift) in 5 different ways, the data was obtained using accelorometers placed in different parts of the body. There are two sets of this data, one is the training set and the other one is the test set. The training set is used to build a model to predict the "classe" (how well is the exercise done), this model will be used to predict the classes of 20 test cases.
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE)
+library(caret)
+library(randomForest)
+library(ggplot2)
+```
+
+## Loading data
+
+Both the training set, and the test set, are downloaded and then each assigned to a variable.
+
+```{r Loading data}
+## Downloading training data
+download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv", destfile = "pml-training.csv")
+## Reading training data file into a variable
+trainingdata <- read.csv(file = "pml-training.csv")
+## Downloading testing data
+download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv", destfile = "pml-testing.csv")
+## Reading testing data file into a variable
+testingdata <- read.csv(file = "pml-testing.csv") 
+```
+
+## Summary of the training data
+
+Getting a summary of the training dataset in order to try to the understand the data contained in the dataframe.
+
+```{r summary}
+str(trainingdata)
+##head(trainingdata,n=3)
+```
+
+After a basic analysis of the training data, I saw that there are 19,622 observations of 160 variables and that some of the variables have a lot of missing values (ex. 19,216 NAs), so I decided to remove those variables because with missing information is not easy to know the contribution of those variables to the "classe" classification.
+
+Also there are some variables that are not important for the "classe" classification, like the name of the subject, or the time related to the activity, so I also removed those columns from the dataframe. 
+
+```{r removing columns}
+newtrainingdata <- trainingdata[,!names(trainingdata)%in% c("kurtosis_roll_belt","kurtosis_picth_belt","kurtosis_yaw_belt","skewness_roll_belt","skewness_roll_belt.1","skewness_yaw_belt","max_yaw_belt","min_yaw_belt","amplitude_yaw_belt","kurtosis_roll_arm","kurtosis_picth_arm","kurtosis_yaw_arm","skewness_roll_arm","skewness_pitch_arm","skewness_yaw_arm","kurtosis_roll_dumbbell","kurtosis_picth_dumbbell","kurtosis_yaw_dumbbell","skewness_roll_dumbbell","skewness_pitch_dumbbell","skewness_yaw_dumbbell","max_yaw_dumbbell","min_yaw_dumbbell","amplitude_yaw_dumbbell","kurtosis_roll_forearm","kurtosis_picth_forearm","kurtosis_yaw_forearm","skewness_roll_forearm","skewness_pitch_forearm","skewness_yaw_forearm","max_yaw_forearm","min_yaw_forearm","amplitude_yaw_forearm","max_roll_belt","max_picth_belt","min_roll_belt","min_pitch_belt","amplitude_roll_belt","amplitude_pitch_belt","var_total_accel_belt","avg_roll_belt","stddev_roll_belt","var_roll_belt","avg_pitch_belt","stddev_pitch_belt","var_pitch_belt","avg_yaw_belt","stddev_yaw_belt","var_yaw_belt","var_accel_arm","avg_roll_arm","stddev_roll_arm","var_roll_arm","avg_pitch_arm","stddev_pitch_arm","var_pitch_arm","avg_yaw_arm","stddev_yaw_arm","var_yaw_arm","max_roll_arm","max_picth_arm","max_yaw_arm","min_roll_arm","min_pitch_arm","min_yaw_arm","amplitude_roll_arm","amplitude_pitch_arm","amplitude_yaw_arm","max_roll_dumbbell","max_picth_dumbbell","min_roll_dumbbell","min_pitch_dumbbell","amplitude_roll_dumbbell","amplitude_pitch_dumbbell","var_accel_dumbbell","avg_roll_dumbbell","stddev_roll_dumbbell","var_roll_dumbbell","avg_pitch_dumbbell","stddev_pitch_dumbbell","var_pitch_dumbbell","avg_yaw_dumbbell","stddev_yaw_dumbbell","var_yaw_dumbbell","max_roll_forearm","max_picth_forearm","min_roll_forearm","min_pitch_forearm","amplitude_roll_forearm","amplitude_pitch_forearm","var_accel_forearm","avg_roll_forearm","stddev_roll_forearm","stddev_roll_forearm","var_roll_forearm","avg_pitch_forearm","stddev_pitch_forearm","var_pitch_forearm","avg_yaw_forearm","stddev_yaw_forearm","var_yaw_forearm","user_name","raw_timestamp_part_1","raw_timestamp_part_2","cvtd_timestamp","new_window","num_window","num_window","X")]
+```
+
+After removing the variables, there are left 53 variables in the dataframe. Then I looked for the variables that are highly correlated and removed the columns suggested (findCorrelation fucntion).
+
+```{r correlation analysis}
+## Finding the correlation of the variables (not including the "classe" column).
+cormatrix <- cor(newtrainingdata[,1:52])
+## Looking for the highly correlated variables and getting the column numbers to remove, suggested by the default values of the findCorrelation function.
+highlycorrelated <- findCorrelation(cormatrix)
+## Subsetting the newtrainingdata dataframe.
+highlycorrelated
+newtrainingdata <- subset(newtrainingdata, select = -c(highlycorrelated))
+```
+
+## Building models
+
+I tried using the train function with "rf"" as the method, but it took a lot of time to generate the predictor model, so I tried with the randomForest function and it was faster, and with almost no percentage error.
+
+```{r building models}
+set.seed(45)
+rfmodel1 <- randomForest(classe~.,newtrainingdata)
+rfmodel1
+```
+
+## Plots
+
+The next plot shows, in a way, the importance that each variable has to the model, basically the variables at the top is the one that explains or have more impact on the model, and the ones at the bottom are the ones that contribute less to the prediction model.
+
+```{r Plots}
+##
+varImpPlot(rfmodel1, main = "Random Forest model")
+
+```
+
